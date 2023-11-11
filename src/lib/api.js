@@ -34,6 +34,17 @@ export async function sleep(ms) {
  */
 export async function searchLaunches(query) {
   /* TODO útfæra */
+  try {
+    const response = await fetch(`${API_URL}launch/?mode=list&search=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error('það eru einhver vandamál með netið');
+    }
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Error:', error);
+    return null;
+  }
 }
 
 /**
@@ -43,4 +54,14 @@ export async function searchLaunches(query) {
  */
 export async function getLaunch(id) {
   /* TODO útfæra */
+  try {
+    const response = await fetch(`${API_URL}launch/${id}`);
+    if (!response.ok) {
+      throw new Error('Error Net tenging:');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error:', error);
+    return null;
+  }
 }

@@ -1,5 +1,5 @@
 import { getLaunch, searchLaunches } from './api.js';
-import { el } from './elements.js';
+import { el, empty } from './elements.js';
 
 /**
  * Býr til leitarform.
@@ -9,7 +9,14 @@ import { el } from './elements.js';
  */
 export function renderSearchForm(searchHandler, query = undefined) {
   /* TODO útfæra */
+  const form = el('form', {}, 
+    el('input', { type: 'search', name: 'search', value: query || '' }),
+    el('button', {}, 'Leita')
+  );
+  form.addEventListener('submit', searchHandler);
+  return form;
 }
+
 
 /**
  * Setur „loading state“ skilabað meðan gögn eru sótt.
@@ -18,6 +25,13 @@ export function renderSearchForm(searchHandler, query = undefined) {
  */
 function setLoading(parentElement, searchForm = undefined) {
   /* TODO útfæra */
+  if (searchForm) {
+    const formClone = searchForm.cloneNode(true);
+    formClone.querySelector('button').disabled = true;
+    parentElement.replaceChild(formClone, searchForm);
+  }
+  const loadingElement = el('p', {}, 'Sæki gögn...');
+  parentElement.appendChild(loadingElement);
 }
 
 /**
@@ -27,6 +41,17 @@ function setLoading(parentElement, searchForm = undefined) {
  */
 function setNotLoading(parentElement, searchForm = undefined) {
   /* TODO útfæra */
+  if (searchForm) {
+     // Create a clone with the desired modifications
+     const formClone = searchForm.cloneNode(true);
+     formClone.querySelector('button').disabled = false;
+ 
+     // Replace only if searchForm is still a child of parentElement
+     if (parentElement.contains(searchForm)) {
+       parentElement.replaceChild(formClone, searchForm);
+     }
+  }
+  empty(parentElement);
 }
 
 /**
@@ -36,6 +61,18 @@ function setNotLoading(parentElement, searchForm = undefined) {
  */
 function createSearchResults(results, query) {
   /* TODO útfæra */
+  if (!results) {
+    return el('p', {}, 'Engar niðurstöður fundust.');
+  }
+  const list = el('ul', {});
+  results.forEach((launch) => {
+    const item = el('li', {},
+      el('a', { href: `/?id=${launch.id}` }, launch.name),
+      el('span', {}, ` - ${launch.status.name}`),
+    );
+    list.appendChild(item);
+  });
+  return list;
 }
 
 /**
@@ -46,6 +83,11 @@ function createSearchResults(results, query) {
  */
 export async function searchAndRender(parentElement, searchForm, query) {
   /* TODO útfæra */
+  setLoading(parentElement, searchForm);
+  const results = await searchLaunches(query);
+  setNotLoading(parentElement, searchForm);
+  const searchResults = createSearchResults(results, query);
+  parentElement.appendChild(searchResults);
 }
 
 /**
@@ -54,28 +96,17 @@ export async function searchAndRender(parentElement, searchForm, query) {
  * @param {(e: SubmitEvent) => void} searchHandler Fall sem keyrt er þegar leitað er.
  * @param {string | undefined} query Leitarorð, ef eitthvað, til að sýna niðurstöður fyrir.
  */
-export function renderFrontpage(
-  parentElement,
-  searchHandler,
-  query = undefined,
-) {
+export function renderFrontpage(parentElement, searchHandler, query = undefined) {
   const heading = el('h1', {}, 'Geimskotaleitin 🚀');
   const searchForm = renderSearchForm(searchHandler, query);
   const container = el('main', {}, heading, searchForm);
   parentElement.appendChild(container);
 
-  if (!query) {
-    return;
+  if (query) {
+    searchAndRender(parentElement, searchForm, query);
   }
-
-  searchAndRender(parentElement, searchForm, query);
 }
 
-/**
- * Sýna geimskot.
- * @param {HTMLElement} parentElement Element sem á að innihalda geimskot.
- * @param {string} id Auðkenni geimskots.
- */
 export async function renderDetails(parentElement, id) {
   const container = el('main', {});
   const backElement = el(
@@ -84,15 +115,37 @@ export async function renderDetails(parentElement, id) {
     el('a', { href: '/' }, 'Til baka'),
   );
 
+
   parentElement.appendChild(container);
 
-  /* TODO setja loading state og sækja gögn */
+  setLoading(container);
 
-  // Tómt og villu state, við gerum ekki greinarmun á þessu tvennu, ef við
-  // myndum vilja gera það þyrftum við að skilgreina stöðu fyrir niðurstöðu
+  const result = await getLaunch(id);
+
+  setNotLoading(container);
+
   if (!result) {
-    /* TODO útfæra villu og tómt state */
+    container.textContent = 'Villa við að sækja gögn.';
+    return;
   }
 
-  /* TODO útfæra ef gögn */
+  const launchElement = el('div', { class: 'launch-details' },
+    el('h2', {}, result.name),
+    el('p', {}, `Staða: ${result.status.name}`),
+    el('p', {}, `Geimferð: ${result.mission.name}`),
+    result.image ? el('img', { src: result.image, alt: `Image of ${result.name}` }) : null,
+    el('p', {}, `Stöðulýsing: ${result.status.description}`),
+    el('p', {}, `Lýsing á geimferð: ${result.mission.description}`),
+    // ... annað efni eftir þörfum
+  );
+
+  container.appendChild(backElement);
+  container.appendChild(launchElement);
 }
+
+/**
+ * Sýna geimskot.
+ * @param {HTMLElement} parentElement Element sem á að innihalda geimskot.
+ * @param {string} id Auðkenni geimskots.
+ */
+
